@@ -10,6 +10,9 @@ with $x=<x_p>$ the flow vector, $x_p$ the flow traversing path $p$, $(i,j)$ the 
 
 The function $D_{i,j}$ is positive, convex and differentiable.
 
+The repository also supports the equivalent case in which the cost functions
+correspond to graph nodes, i.e. $D_n$ with $n$ a graph node.
+
 ```bibtex
 @book{bertsekas2021data,
   title={Data networks},
