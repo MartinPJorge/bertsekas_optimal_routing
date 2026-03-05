@@ -37,7 +37,7 @@ def projection_method(G, od_paths, od_req, costs, costs_, costs__, x0, tol,
     cross = {
         en : {
             w: {p for p,path in enumerate(paths) if en in path\
-                    or en in [el for el in item for item in path]}
+                    or en in [el for item in path for el in item]}
             for w,paths in od_paths.items()
         }
         for en in costs.keys()
@@ -48,13 +48,13 @@ def projection_method(G, od_paths, od_req, costs, costs_, costs__, x0, tol,
                         for p in cross[en][w]])
 
     # Total cost of solution x
-    total = lambda x: sum([cost[en](F(en,x)) for en in cost.keys()])
+    total = lambda x: sum([costs[en](F(en,x)) for en in costs.keys()])
 
     # Elements (edge or node) on a the p^th path of OD w
     elements = lambda w, p: {en for en,wp in cross.items() if p in wp[w]}
 
     # dp of [(5.84),1]: first derivative p^th path of OD w @solution x
-    dp = lambda w, p, x: sum([cost_(F(en,x)) for en in elements(w,p)])
+    dp = lambda w, p, x: sum([costs_[en](F(en,x)) for en in elements(w,p)])
 
     # Lp: elements (edge or nodes) within p^th path of OD w,
     #     or the MFDL path p_^th of OD w, but not both
@@ -123,7 +123,7 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
     :param costs_: dictionary of cost functions' derivatives, of edges or nodes
                     {e: f'(Fe)} or {n: f'(Fn)}, w/ e an edge and n a node
     :param x0: initial solution dictionary {OD: [F1,F2,...]}
-    :param tol: tolerance stopping criteria, if |f(xk)-f(xk+1)|<tol stop
+    :param tol: tolerance stopping criteria, if 1-f(xk+1)/f(xk)<=tol stop
     :param alpha_fn: function f(xp,x_) to obtain the best step alpha
     :param alpha_steps: granularity to find the best step size (used if
                         alpha_fn=None)
@@ -135,7 +135,7 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
     cross = {
         en : {
             w: {p for p,path in enumerate(paths) if en in path\
-                    or en in [el for el in item for item in path]}
+                    or en in [el for item in path for el in item]}
             for w,paths in od_paths.items()
         }
         for en in costs.keys()
@@ -146,13 +146,13 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
                         for p in cross[en][w]])
 
     # Total cost of solution x
-    total = lambda x: sum([cost[en](F(en,x)) for en in cost.keys()])
+    total = lambda x: sum([costs[en](F(en,x)) for en in costs.keys()])
 
     # Elements (edge or node) on a the p^th path of OD w
     elements = lambda w, p: {en for en,wp in cross.items() if p in wp[w]}
 
     # dp of [(5.84),1]: first derivative p^th path of OD w @solution x
-    dp = lambda w, p, x: sum([cost_(F(en,x)) for en in elements(w,p)])
+    dp = lambda w, p, x: sum([costs_[en](F(en,x)) for en in elements(w,p)])
 
     # Lp: elements (edge or nodes) within p^th path of OD w,
     #     or the MFDL path p_^th of OD w, but not both
@@ -174,7 +174,7 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
     xk  = {w: [2*xp for xp in x0[w]] for w in x0.keys()}
     xk1 = x0
     # Projection method loop [(5.83)-(5.85),1]
-    while abs(total(xk) - total(xk1)) < tol:
+    while 1 - total(xk1) / total(xk) > tol:
         xk = xk1
 
         # minimum first derivative length/cost (MFDL) path of each OD pair w
@@ -186,8 +186,8 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
 
         # route all OD traffic along the MFDL path
         x_ = {
-            w: [0 if p!= mfdlp[w] else od_req[w]]
-            for w,paths in x0.values()
+            w: [0 if p!= mfdlp[w] else od_req[w] for p,_ in enumerate(paths)]
+            for w,paths in x0.items()
         }
 
         # Do the flow deviation step
@@ -200,6 +200,8 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
             for alpha_ in np.linspace(0, 1, alpha_gran):
                 x_fd = fd(xk1,x_,alpha_)
                 xk1 = x_fd if total(x_fd) < total(xk1) else xk1
+
+        print(f'D={total(xk1)} xk1: {xk1}')
 
     return xk1
 
