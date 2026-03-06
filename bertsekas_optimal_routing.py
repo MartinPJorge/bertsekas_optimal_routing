@@ -124,9 +124,9 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
                     {e: f'(Fe)} or {n: f'(Fn)}, w/ e an edge and n a node
     :param x0: initial solution dictionary {OD: [F1,F2,...]}
     :param tol: tolerance stopping criteria, if 1-f(xk+1)/f(xk)<=tol stop
-    :param alpha_fn: function f(xp,x_,D,D_) to obtain the best step alpha
-                     with D,D_ the first/second derivative cost functions
-    :param alpha_steps: granularity to find the best step size (used if
+    :param alpha_fn: function f(xp,x_,D,D_,alpha_gran) to obtain the best step
+                     alpha with D,D_ the first/second derivative cost functions
+    :param alpha_gran: granularity to find the best step size (used if
                         alpha_fn=None)
     :return: a dictionary specifying the ammount of flow sent over each OD path
                 {OD: [F1,F2,...]}
@@ -196,7 +196,7 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
 
         # Do the flow deviation step
         if alpha_fn != None:
-            xk1 = fd(xk,x_,alpha_fn(xk,x_,total,total_))
+            xk1 = fd(xk,x_,alpha_fn(xk,x_,total,total_,alpha_gran))
         else:
             # Line search over alpha to obtain the minimum cost
             alpha_ = 0
