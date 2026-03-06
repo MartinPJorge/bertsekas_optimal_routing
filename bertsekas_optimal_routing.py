@@ -106,7 +106,7 @@ def projection_method(G, od_paths, od_req, costs, costs_, costs__, x0, tol,
 def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
                       alpha_fn=None, alpha_gran=100):
     """
-    Executes the projection method described in [5.7.3, 1].
+    Executes the flow deviation method described in [5.6.1, 1].
     Each origin-destination (OD) pair has a list of possible paths and a
     flow requirement.
     The goal is to find the optimal routing to minimize the cost of
