@@ -54,7 +54,7 @@ costs_ = {
 x0 = {0: [0,0,1]}
 
 # Create the step size function
-alpha_fn = lambda xp,x_: -1\
+alpha_fn = lambda xp,x_,D,D_: -1\
     * (xp[0][0]*(x_[0][0]-xp[0][0])+xp[0][1]*(x_[0][1]-xp[0][1])+(.1*xp[0][2]+.55)*(x_[0][2]-xp[0][2]))\
     / ((x_[0][0]-xp[0][0])**2+(x_[0][1]-xp[0][1])**2+.1*(x_[0][2]-xp[0][2])**2)
 
