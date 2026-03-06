@@ -1,6 +1,6 @@
-# Projection method
-This repository implements the Projection method to solve the optimal routing problem
-specified in Section 5.7.3 of the *Data Networks book of Bertsekas* (see reference below).
+# Bertsekas optimal routing
+This repository implements the Flow deviation method and Projection methods to solve the optimal routing problem
+specified in (5.33) of the *Data Networks book of Bertsekas* (see reference below).
 
 The problem is the following:
 ```math
