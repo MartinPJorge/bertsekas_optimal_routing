@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import time
 
 def projection_method(G, od_paths, od_req, costs, costs_, costs__, x0, tol,
                       alpha):
@@ -104,7 +105,8 @@ def projection_method(G, od_paths, od_req, costs, costs_, costs__, x0, tol,
 
 
 def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
-                      alpha_fn=None, alpha_gran=100):
+                   alpha_fn=None, alpha_gran=100, debug=True,
+                   alpha_kwargs=None):
     """
     Executes the flow deviation method described in [5.6.1, 1].
     Each origin-destination (OD) pair has a list of possible paths and a
@@ -124,15 +126,20 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
                     {e: f'(Fe)} or {n: f'(Fn)}, w/ e an edge and n a node
     :param x0: initial solution dictionary {OD: [F1,F2,...]}
     :param tol: tolerance stopping criteria, if 1-f(xk+1)/f(xk)<=tol stop
-    :param alpha_fn: function f(xp,x_,D,D_,alpha_gran) to obtain the best step
-                     alpha with D,D_ the first/second derivative cost functions
+    :param alpha_fn: function f(xp,x_,D,D_,alpha_gran,*alpha_kwargs)
+                     to obtain the best step alpha with D,D_ the first/second
+                     derivative cost functions, and *alpha_kwargs a list of
+                     optional arguments
     :param alpha_gran: granularity to find the best step size (used if
                         alpha_fn=None)
+    :param alpha_kwargs: list of optional argumens for the alpha_fn
+    :param debug: boolean to print or not the progress
     :return: a dictionary specifying the ammount of flow sent over each OD path
                 {OD: [F1,F2,...]}
     """
 
     # Create the dictionary specifying the OD and paths crossing each node/edge
+    tic = time.process_time()
     cross = {
         en : {
             w: {p for p,path in enumerate(paths) if en in path\
@@ -140,6 +147,17 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
             for w,paths in od_paths.items()
         }
         for en in costs.keys()
+    }
+    tac = time.process_time()
+    if debug: print('Time computing en crossings: ', tac-tic)
+
+    # Elements (edge or node) on p^th path of OD w
+    elements = {
+        w: {
+            p: {en for en,wp in cross.items() if p in wp[w]}
+            for p,path in enumerate(paths)
+        }
+        for w,paths in od_paths.items()
     }
 
     # Flow traversing an element (edge or node) for solution x
@@ -152,19 +170,12 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
     # Total cost derivative of solution x
     total_ = lambda x: sum([costs_[en](F(en,x)) for en in costs_.keys()])
 
-    # Elements (edge or node) on a the p^th path of OD w
-    elements = lambda w, p: {en for en,wp in cross.items() if p in wp[w]}
+    # # Elements (edge or node) on a the p^th path of OD w
+    # elements = lambda w, p: {en for en,wp in cross.items() if p in wp[w]}
 
     # dp of [(5.84),1]: first derivative p^th path of OD w @solution x
-    dp = lambda w, p, x: sum([costs_[en](F(en,x)) for en in elements(w,p)])
-
-    # Lp: elements (edge or nodes) within p^th path of OD w,
-    #     or the MFDL path p_^th of OD w, but not both
-    Lp = lambda w, p, p_: elements(w,p).difference(elements(w,p_))
-
-    # Hp of [(5.85),1]: second derivative p^th path of OD w @solution x
-    #                   knowing the MDFL path p_^th of OD w
-    Hp = lambda w, p, p_, x: sum([cost__(F(en,x)) for en in Lp(w,p,p_)])
+    #dp = lambda w, p, x: sum([costs_[en](F(en,x)) for en in elements(w,p)])
+    dp = lambda w, p, x: sum([costs_[en](F(en,x)) for en in elements[w][p]])
 
     # flow deviation step [(5.62),1]: given the current solution xp and the
     #                                 MFDL solution x_ w/ step alpha
@@ -183,10 +194,13 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
 
         # minimum first derivative length/cost (MFDL) path of each OD pair w
         # @solution xk
+        tic = time.process_time()
         mfdlp = {
             w: int(np.argmin([dp(w,p,xk) for p,path in enumerate(paths)]))
             for w,paths in od_paths.items()
         }
+        tac = time.process_time()
+        if debug: print(' Time computing MDLP:', tac-tic)
 
         # route all OD traffic along the MFDL path
         x_ = {
@@ -195,8 +209,10 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
         }
 
         # Do the flow deviation step
+        tic = time.process_time()
         if alpha_fn != None:
-            xk1 = fd(xk,x_,alpha_fn(xk,x_,total,total_,alpha_gran))
+            xk1 = fd(xk,x_,alpha_fn(xk,x_,total,total_,alpha_gran,
+                                    *(alpha_kwargs+[F])))
         else:
             # Line search over alpha to obtain the minimum cost
             alpha_ = 0
@@ -204,8 +220,10 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
             for alpha_ in np.linspace(0, 1, alpha_gran):
                 x_fd = fd(xk1,x_,alpha_)
                 xk1 = x_fd if total(x_fd) < total(xk1) else xk1
+        tac = time.process_time()
+        if debug: print(' Time computing best alpha:', tac-tic)
 
-        print(f'D={total(xk1)} xk1: {xk1}')
+        if debug: print(f'D={total(xk1)}')
 
     return xk1
 
