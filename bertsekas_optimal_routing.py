@@ -233,7 +233,7 @@ def flow_deviation(G, od_paths, od_req, costs, costs_, x0, tol,
 
 def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
                    alpha_fn=None, alpha_gran=100, debug=True,
-                   alpha_kwargs=None):
+                   alpha_kwargs=None, cross=None, elements=None, phi=None):
     """
     Executes the flow deviation method described in [5.6.1, 1].
     Each origin-destination (OD) pair has a list of possible paths and a
@@ -262,40 +262,51 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
                         alpha_fn=None)
     :param alpha_kwargs: list of optional argumens for the alpha_fn
     :param debug: boolean to print or not the progress
+    :param cross: a dictionary specifying the OD and paths crossing each edge/node
+    :param elements: a dictionary specifying the edge/node on p^th path of OD w
+    :param phi: a dictionary with edge/node keys
+                phi[en] = np.array(size=k·p) w/ 1 if en in (k,p)
     :return: a dictionary specifying the ammount of flow sent over each OD path
                 {OD: [F1,F2,...]}
+             a dictionary specifying the OD and paths crossing each edge/node
+             a dictionary specifying the edge/node on p^th path of OD w
+             a dictionary with edge/node keys
+                phi[en] = np.array(size=k·p) w/ 1 if en in (k,p)
     """
 
-    # Create the dictionary specifying the OD and paths crossing each node/edge
-    tic = time.process_time()
-    cross = {
-        en : {
-            w: {p for p,path in enumerate(paths) if en in path\
-                    or en in [el for item in path for el in item]}
+    if cross == None:
+        # Create the dictionary specifying the OD and paths crossing each
+        # node/edge
+        tic = time.process_time()
+        cross = {
+            en : {
+                w: {p for p,path in enumerate(paths) if en in path\
+                        or en in [el for item in path for el in item]}
+                for w,paths in od_paths.items()
+            }
+            for en in costs.keys()
+        }
+        tac = time.process_time()
+        if debug: print('Time computing en crossings: ', tac-tic)
+
+    if elements == None:
+        # Elements (edge or node) on p^th path of OD w
+        elements = {
+            w: {
+                p: {en for en,wp in cross.items() if p in wp[w]}
+                for p,path in enumerate(paths)
+            }
             for w,paths in od_paths.items()
         }
-        for en in costs.keys()
-    }
-    tac = time.process_time()
-    if debug: print('Time computing en crossings: ', tac-tic)
 
-    # Elements (edge or node) on p^th path of OD w
-    elements = {
-        w: {
-            p: {en for en,wp in cross.items() if p in wp[w]}
-            for p,path in enumerate(paths)
+    if phi == None:
+        # phi[en] = np.array(size=k·p) w/ 1 if en in (k,p)
+        phi = {
+            en: np.array([1 if en in elements[w][p] else 0
+                    for w,paths in od_paths.items()\
+                    for p,path in enumerate(paths)])
+            for en in costs.keys()
         }
-        for w,paths in od_paths.items()
-    }
-
-
-    # phi[en] = np.array(size=k·p) w/ 1 if en in (k,p)
-    phi = {
-        en: np.array([1 if en in elements[w][p] else 0
-                for w,paths in od_paths.items()\
-                for p,path in enumerate(paths)])
-        for en in costs.keys()
-    }
 
     # Transform x {OD:[p1,p2,...]} dictionary to np.array
     x2v = lambda x: np.array([xkp for xk in x.values() for xkp in xk])
@@ -375,7 +386,7 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
             xk1[w].append(xk1v[idx])
             idx += 1
 
-    return xk1
+    return xk1, cross, elements, phi
 
 
 
