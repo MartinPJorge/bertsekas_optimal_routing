@@ -252,7 +252,7 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
                     {e: f(Fe)} or {n: f(Fn)}, w/ e an edge and n a node
     :param costs_: dictionary of cost functions' derivatives, of edges or nodes
                     {e: f'(Fe)} or {n: f'(Fn)}, w/ e an edge and n a node
-    :param x0: initial solution dictionary {OD: [F1,F2,...]}
+    :param x0: initial solution np.array [x0_wp]_wp
     :param tol: tolerance stopping criteria, if 1-f(xk+1)/f(xk)<=tol stop
     :param alpha_fn: function f(xp,x_,D,D_,alpha_gran,*alpha_kwargs)
                      to obtain the best step alpha with D,D_ the first/second
@@ -266,8 +266,7 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
     :param elements: a dictionary specifying the edge/node on p^th path of OD w
     :param phi: a dictionary with edge/node keys
                 phi[en] = np.array(size=k·p) w/ 1 if en in (k,p)
-    :return: a dictionary specifying the ammount of flow sent over each OD path
-                {OD: [F1,F2,...]}
+    :return: np.array specifying the flow [x_wp]_wp
              a dictionary specifying the OD and paths crossing each edge/node
              a dictionary specifying the edge/node on p^th path of OD w
              a dictionary with edge/node keys
@@ -308,9 +307,6 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
             for en in costs.keys()
         }
 
-    # Transform x {OD:[p1,p2,...]} dictionary to np.array
-    x2v = lambda x: np.array([xkp for xk in x.values() for xkp in xk])
-
     # Flow traversing an element (edge or node) for solution verctor xv
     Fv = lambda en, xv: xv.dot(phi[en])
 
@@ -326,7 +322,7 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
 
 
     # Set large solution (2x initial) and initial
-    x0v = x2v(x0) # convert to numpy array the initial solution
+    x0v = x0 
     xk1v = x0v
     xkv = 2*x0v # set large initial solution
     tot_xk1v, tot_xkv = totalv(xk1v), totalv(xkv)
@@ -347,9 +343,10 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
         # route all OD traffic along the MFDL path
         x_v = np.array([
             0 if p!= mfdlp[w] else od_req[w]\
-            for w,paths in x0.items()\
+            for w,paths in od_paths.items()
             for p,_ in enumerate(paths)
         ])
+
 
         # Do the flow deviation step
         tic = time.process_time()
@@ -378,15 +375,7 @@ def flow_deviation_v(G, od_paths, od_req, costs, costs_, x0, tol,
         # Keep track of the total cost of the obtained solution
         tot_xk1v = best_total
 
-
-    # Transform the solution vec xk1v into a dict {OD:[p1,p2,...]}
-    xk1, idx = {w: [] for w in od_paths.keys()}, 0
-    for w,paths in od_paths.items():
-        for p,path in enumerate(paths):
-            xk1[w].append(xk1v[idx])
-            idx += 1
-
-    return xk1, cross, elements, phi
+    return xk1v, cross, elements, phi
 
 
 
@@ -419,7 +408,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
     :param costs_: dictionary of cost functions' derivatives, of edges or nodes
                     {e: {(OD,p): f'(xv)}} or
                     {n: {(OD,p): f'(xv)}}, w/ e an edge and n a node
-    :param x0: initial solution dictionary {OD: [F1,F2,...]}
+    :param x0: initial solution np.array [x0_wp]_wp
     :param tol: tolerance stopping criteria, if 1-f(xk+1)/f(xk)<=tol stop
     :param alpha_fn: function f(xp,x_,D,D_,alpha_gran,*alpha_kwargs)
                      to obtain the best step alpha with D,D_ the first/second
@@ -433,8 +422,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
     :param elements: a dictionary specifying the edge/node on p^th path of OD w
     :param phi: a dictionary with edge/node keys
                 phi[en] = np.array(size=k·p) w/ 1 if en in (k,p)
-    :return: a dictionary specifying the ammount of flow sent over each OD path
-                {OD: [F1,F2,...]}
+    :return: np.array specifying the flow [x_wp]_wp
              a dictionary specifying the OD and paths crossing each edge/node
              a dictionary specifying the edge/node on p^th path of OD w
     """
@@ -456,6 +444,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
 
     if elements == None:
         # Elements (edge or node) on p^th path of OD w
+        tic = time.process_time()
         elements = {
             w: {
                 p: {en for en,wp in cross.items() if p in wp[w]}
@@ -463,10 +452,9 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
             }
             for w,paths in od_paths.items()
         }
+        tac = time.process_time()
+        if debug: print('Time computing elements: ', tac-tic)
 
-
-    # Transform x {OD:[p1,p2,...]} dictionary to np.array
-    x2v = lambda x: np.array([xkp for xk in x.values() for xkp in xk])
 
     # Total cost of solution vector x
     totalv = lambda xv: sum([costs[en](xv) for en in costs.keys()])
@@ -477,7 +465,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
 
 
     # Set large solution (2x initial) and initial
-    x0v = x2v(x0) # convert to numpy array the initial solution
+    x0v = x0
     xk1v = x0v
     xkv = 2*x0v # set large initial solution
     tot_xk1v, tot_xkv = totalv(xk1v), totalv(xkv)
@@ -498,7 +486,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
         # route all OD traffic along the MFDL path
         x_v = np.array([
             0 if p!= mfdlp[w] else od_req[w]\
-            for w,paths in x0.items()\
+            for w,paths in od_paths.items()\
             for p,_ in enumerate(paths)
         ])
 
@@ -530,12 +518,5 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
         tot_xk1v = best_total
 
 
-    # Transform the solution vec xk1v into a dict {OD:[p1,p2,...]}
-    xk1, idx = {w: [] for w in od_paths.keys()}, 0
-    for w,paths in od_paths.items():
-        for p,path in enumerate(paths):
-            xk1[w].append(xk1v[idx])
-            idx += 1
-
-    return xk1, cross, elements
+    return xk1v, cross, elements
 
