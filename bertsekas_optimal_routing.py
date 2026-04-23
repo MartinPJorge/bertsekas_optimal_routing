@@ -1,5 +1,11 @@
+import os
+# Use CuPy for GPU acceleration
+if 'GPU' in os.environ and os.environ['GPU'] == '1':
+    import cupy as np
+else:
+    import numpy as np
+
 import networkx as nx
-import numpy as np
 import time
 
 def projection_method(G, od_paths, od_req, costs, costs_, costs__, x0, tol,
@@ -457,10 +463,11 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
 
 
     # Total cost of solution vector x
-    totalv = lambda xv: sum([costs[en](xv) for en in costs.keys()])
+    totalv = lambda xv: np.array([costs[en](xv) for en in costs.keys()]).sum()
 
     # dp of [(5.84),1]: first derivative p^th path of OD w @solution vec xv
-    dpv = lambda w, p, xv: sum([costs_[en][w,p](xv) for en in elements[w][p]])
+    dpv = lambda w, p, xv:\
+        np.array([costs_[en][w,p](xv) for en in elements[w][p]]).sum()
 
 
 
@@ -477,7 +484,8 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
         # @solution xk
         tic = time.process_time()
         mfdlp = {
-            w: int(np.argmin([dpv(w,p,xkv) for p,path in enumerate(paths)]))
+            w: int(np.argmin(np.array([dpv(w,p,xkv)\
+                for p,path in enumerate(paths)])))
             for w,paths in od_paths.items()
         }
         tac = time.process_time()
