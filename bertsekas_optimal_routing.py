@@ -431,6 +431,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
     :return: np.array specifying the flow [x_wp]_wp
              a dictionary specifying the OD and paths crossing each edge/node
              a dictionary specifying the edge/node on p^th path of OD w
+             a dictionary specitying the min 1st derivative path of each OD w
     """
 
     if cross == None:
@@ -483,6 +484,10 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
         # minimum first derivative length/cost (MFDL) path of each OD pair w
         # @solution xk
         tic = time.process_time()
+        for w,paths in od_paths.items():
+            for p,path in enumerate(paths):
+                print(f'{w=} {p=} derivative:', dpv(w,p,xkv))
+                print(f'{path=}')
         mfdlp = {
             w: int(np.argmin(np.array([dpv(w,p,xkv)\
                 for p,path in enumerate(paths)])))
@@ -497,6 +502,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
             for w,paths in od_paths.items()\
             for p,_ in enumerate(paths)
         ])
+        print(f'FLOW DEV: {x_v=}')
 
         # Do the flow deviation step
         tic = time.process_time()
@@ -515,6 +521,9 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
                 #                                 step alpha
                 x_fdv = xkv + alpha_*(x_v-xkv)
                 tot = totalv(x_fdv)
+
+                print(f'search {x_fdv=} {tot=}')
+
                 if tot < best_total:
                     xk1v, best_total = x_fdv, tot
         tac = time.process_time()
@@ -526,5 +535,5 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
         tot_xk1v = best_total
 
 
-    return xk1v, cross, elements
+    return xk1v, cross, elements, mfdlp
 
