@@ -473,6 +473,7 @@ def flow_deviation_sep_v(G, od_paths, od_req, costs, costs_, x0, tol,
 
 
     # Set large solution (2x initial) and initial
+    mfdlp = None
     x0v = x0
     xk1v = x0v
     xkv = 2*x0v # set large initial solution
